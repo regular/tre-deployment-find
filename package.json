@@ -1,8 +1,11 @@
 {
   "name": "tre-deployment-find",
   "version": "1.0.0",
-  "description": "",
+  "description": "find previously deployed tre webapps and treos system images on an ssb network",
   "main": "index.js",
+  "bin": {
+    "tre-deployment-find": "bin/find.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -10,11 +13,18 @@
     "type": "git",
     "url": "git+https://github.com/regular/tre-deployment-find.git"
   },
-  "keywords": [],
+  "keywords": ["tre", "treos"],
   "author": "Jan Bölsche <jan@lagomorph.de> (https://regular.codes/)",
-  "license": "ISC",
+  "license": "AGPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/regular/tre-deployment-find/issues"
   },
-  "homepage": "https://github.com/regular/tre-deployment-find#readme"
+  "homepage": "https://github.com/regular/tre-deployment-find#readme",
+  "dependencies": {
+    "human-time": "0.0.2",
+    "lodash.merge": "^4.6.2",
+    "multicb": "^1.2.2",
+    "pull-stream": "^3.6.14",
+    "tre-cli-client": "^1.1.0"
+  }
 }
