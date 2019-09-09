@@ -2,12 +2,12 @@
 
 /* Usage: 
  *
- *   find [--config PATH-TO-SSB-CONFIG] [--type TYPE] [--author AUTHOR] [MESSAGE.JSON] [--write-back]
+ *   find [--config PATH-TO-SSB-CONFIG] [--type TYPE] [--author AUTHOR] [MESSAGE.JSON] [--write-back] [--format FORMAT] [--interactive] [--debug]
  * 
  * Find a webapp or system deployment in the ssb network that matches
- * the config file's git repository origin URL and git branch, the fiven author and type.
+ * the config file's git repository origin URL and git branch and the given author and type.
  *
- * author and type can also be specified using a serialized ssb message. In this case, revisionBranch and
+ * Author and type can also be specified using a serialized ssb message. In this case, revisionBranch and
  * revisionRoot, if found, will be written back to the input file when --write-back is set.
  *
  * It ignores deployments by authors other than ssb.whoami or, if present, the one given in AUTHOR
@@ -15,8 +15,8 @@
  * TYPE typically is either webapp or system
  * AUTHOR defaults to ssb.whoami
  * MESSAGE.JSON serialized ssb message
+ * FORMAT is either 'json' (default) or 'revision-root'
 */
-
 
 const fs = require('fs')
 const client = require('tre-cli-client')
@@ -29,7 +29,7 @@ const merge = require('lodash.merge')
 client( (err, ssb, conf, keys) => {
   if (err) bail(err)
   
-  const findMatching = FindMatching(ssb, {debug: false})
+  const findMatching = FindMatching(ssb, conf)
 
   if (!conf.type && conf._.length<1) {
     bail(new Error('Either --type TYPE or MESSAGE.JSON is needed as input'))
@@ -38,7 +38,7 @@ client( (err, ssb, conf, keys) => {
   let inputFile, inputKv = {}
   if (conf._.length) {
     inputFile = conf._[0]
-    console.log(`input file: ${inputFile}`)
+    console.error(`input file: ${inputFile}`)
     try {
       inputKv = JSON.parse(fs.readFileSync(inputFile))
       if (!inputKv.value) throw new Error('input message has no .value')
@@ -52,27 +52,46 @@ client( (err, ssb, conf, keys) => {
   }
   
   let author = conf.author || (inputKv.value && inputKv.value.author)
-
   const done = multicb({pluck:1, spread: true})
-  const dir = dirname(conf.config)
-  console.error(`directory: ${dir}`)
+
+  function getGitInfo(cb) {
+    if (inputKv.value && inputKv.value.content) {
+      const {repository, repositoryBranch} = inputKv.value.content
+      if (repository && repositoryBranch) {
+        console.error(`Found git info in ${inputFile}`)
+        return cb(null, {
+          repository,
+          repositoryBranch
+        })
+      }
+    }
+    const dir = dirname(conf.config)
+    console.error(`directory: ${dir}`)
+    gitInfo(dir, cb)
+  }
 
   ssb.whoami(done())
-  gitInfo(dir, done())
+  getGitInfo(done())
 
   done( (err, feed, git) => {
     bail(err)
     author = author || feed.id
     console.error(`author: ${author}`)
     console.error(`type: ${type}`)
-    console.dir(git)
+    console.error(`repository: ${git.repository}`)
+    console.error(`branch: ${git.repositoryBranch}`)
+    const revRoot = inputKv && revisionRoot(inputKv)
+    if (revRoot) {
+      console.error(`revisionRoot: ${revRoot}`)
+    }
     const searchKv = {
       value: {
         author,
         content: {
           type,
           repository: git.repository,
-          repositoryBranch: git.repositoryBranch
+          repositoryBranch: git.repositoryBranch,
+          revisionRoot: revRoot
         }
       }
     }
@@ -89,7 +108,11 @@ client( (err, ssb, conf, keys) => {
       if (conf['write-back'] && inputFile) {
         fs.writeFileSync(inputFile, JSON.stringify(outputKv, null, 2), 'utf8')
       } else {
-        console.log(JSON.stringify(outputKv, null, 2))
+        if (conf.format == 'revision-root') {
+          console.log(revisionRoot(kv))
+        } else {
+          console.log(JSON.stringify(outputKv, null, 2))
+        }
       }
       ssb.close()
     })
