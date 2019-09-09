@@ -1,6 +1,6 @@
 {
   "name": "tre-deployment-find",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "find previously deployed tre webapps and treos system images on an ssb network",
   "main": "index.js",
   "bin": {
